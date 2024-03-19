@@ -1,0 +1,93 @@
+<!-- Wow, you're quite curious to check the source code, 
+    play time is over mate, NOW GO BACK TO WORK !!-->
+    
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cape of Good Hope</title>
+    <link rel="icon" type="image/x-icon" href="../adamastor_logo.ico">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-image: url('adamastor_statue.jpg'); /* Replace 'adamastor_statue.jpg' with your image path */
+            background-size: cover;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 100px auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        form {
+            margin-top: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input[type="text"], input[type="file"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            color: #333;
+        }
+
+        input[type="file"] {
+            margin-bottom: 30px;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Let the party begin my friend...</h2>
+        <form action="upload.php" method="post" enctype="multipart/form-data">
+            <label for="fname">First Name (uh?):</label>
+            <input type="text" id="fname" name="fname">
+
+            <label for="lname">Last Name (duh?):</label>
+            <input type="text" id="lname" name="lname">
+
+            <label for="email">Email (wut?):</label>
+            <input type="text" id="email" name="email">
+
+            <label for="uploaded_file">Select  <span style="color: red; font-weight: bold;">REVERSE SHELL</span> to upload:</label>
+            <input type="file" name="uploaded_file" id="uploaded_file">
+
+            <input type="submit" value="Upload DA SHELL" name="submit">
+        </form>
+    </div>
+</body>
+</html>
+
