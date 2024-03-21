@@ -1,3 +1,5 @@
+![download](https://github.com/z0ne323/Adamastor/assets/80288433/1e6fbcc0-5490-49db-af64-56ddfe392bec)
+
 # Adamastor set up guide
 ## Installing the server
 ### Create the VM
