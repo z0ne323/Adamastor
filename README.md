@@ -1,5 +1,7 @@
 ![download](https://github.com/z0ne323/Adamastor/assets/80288433/1e6fbcc0-5490-49db-af64-56ddfe392bec)
 
+You can find the Write-Up just [here](https://github.com/z0ne323/Adamastor/blob/main/Walkthrough.md)
+
 # Adamastor set up guide
 ## Installing the server
 ### Create the VM
