@@ -91,7 +91,9 @@ To make everything work for this challenges, we will need to have a few packages
 2) As `root`, Put the file `server.py` from the folder `/privesc` in our project to `/root` on the machine
 3) As `root`, edit your cronjob using this command: `crontab -e`, since it will be the first time running this command they might ask for which editor to use, press `1` if you got prompted about this. Then it should open your cronjobs, add at the end of the file this line: `@reboot /usr/bin/python3 /root/server.py`, this will allow the script to run at each bootup.
 
-**SIDE NOTE** If you're having multiple players on the box, consider adding this line in your cronjobs: `*/5 * * * * rm -rf /var/www/html/Database_Administration/*`, that way other users won't discover how to gain foothold, since this directory is holding our reverse shells... :)
+**SIDE NOTE**: If you're having multiple players on the box, consider adding this line in your cronjobs: `*/5 * * * * rm -rf /var/www/html/Database_Administration/*`, that way other users won't discover how to gain foothold, since this directory is holding our reverse shells.
+
+Don't forget also to execute these four commands as root to flush any logs we might have from the apache service (prevent the disk space from filling up because of the fuzzing from players): `ln -sf /dev/null /var/log/apache2/access.log && ln -sf /dev/null /var/log/apache2/error.log && ln -sf /dev/null /var/log/apache2/error.log.1 && ln -sf /dev/null /var/log/apache2/other_vhosts_access.log`
 
 5) To start the cronjob, reboot using the command: `reboot` still as `root`
 
