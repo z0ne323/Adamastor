@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
     {
         printf("[+] Congratulations! You've passed the XOR challenge.\n");
 
-        char obfuscated_target[] = "=28NQvkf0R"; 
+        char obfuscated_target[] = "=28NQvkf0R\0"; 
         obfuscate_function(obfuscated_target);
 
         printf("[*] Now, provide an input for the second challenge: ");
@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
 
             char *key = received_data;
 
-            char ciphered_target[] = "TkeeuhxfjAcjXaoJgfxkFhhHxhqGjtvrlst";
+            char ciphered_target[] = "TkeeuhxfjAcjXaoJgfxkFhhHxhqGjtvrlst\0";
 
             char *deciphered_target = guess_the_cipher_my_friend(ciphered_target, key);
 
