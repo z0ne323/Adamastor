@@ -245,6 +245,8 @@ int main(int argc, char *argv[])
         {
             free(obfuscated_user_input);
 
+            obfuscated_user_input = NULL;
+            
             printf("[+] Well done! You've passed the obfuscation challenge.\n");
 
             const char *environment_variables_to_pass[] = {"DATA_DETAILS_01", "DATA_DETAILS_02"};
@@ -290,6 +292,7 @@ int main(int argc, char *argv[])
             if (strncmp(deciphered_user_input, deciphered_target, 35) == 0) 
             {
                 free(deciphered_user_input);
+                deciphered_user_input = NULL;
                 printf("[+] Well done! You've passed the final challenge!\n");
                 get_shell();
                 char *our_next_adventure =  "⠀⠀⠀⠈⠉⠛⢷⣦⡀⠀⣀⣠⣤⠤⠄\n"
@@ -314,12 +317,14 @@ int main(int argc, char *argv[])
             {
                 printf("[-] Try again! Wrong input: %s\n", deciphered_user_input);
                 free(deciphered_user_input);
+                deciphered_user_input = NULL;
             }
         } 
         else 
         {
             printf("[-] Try again! Wrong input: %s\n", obfuscated_user_input);
             free(obfuscated_user_input);
+            obfuscated_user_input = NULL;
         }
 
     } 
